@@ -138,12 +138,12 @@ public class Graph extends JPanel {
 
 
     /* creating the method createAndShowGui in the main method, where we create the frame too and pack it in the panel*/
-    public static void createAndShowGui(List<Double> points, double score) {
+    public static void createAndShowGui(List<Double> points, double score, String str) {
         /* Main panel */
         Graph mainPanel = new Graph(points,score);
         mainPanel.setPreferredSize(new Dimension(1200, 800));
         /* creating the frame */
-        JFrame frame = new JFrame("Sample Graph");
+        JFrame frame = new JFrame(str);
         //JFrame frame = Singleton.getInstance();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add(mainPanel);

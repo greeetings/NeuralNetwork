@@ -1,10 +1,13 @@
 import java.awt.*;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 
 public class NeuralNetwork {
 
     ArrayList<Double> points = new ArrayList<>();
+    ArrayList<Double> testPoints = new ArrayList<>();
     double score;
+    double testScore;
     double[] enters;
     double[] inputs;
     double[] hidden;
@@ -12,7 +15,7 @@ public class NeuralNetwork {
     double nu = 0.6;
     double[][] wEI;
     double[][] wIH;
-    double[] a = {0.5,0.7,2.6}; //коэф наклона
+    double[] a = {0.6,0.8,2.6}; //коэф наклона
     double[][] wHO;
     double[][] patterns  = {
                    {1,1,1,1,1,
@@ -50,7 +53,15 @@ public class NeuralNetwork {
     double[][] answers ={   {1,0,0,0},
                             {0,1,0,0},
                             {0,0,1,0},
-                            {0,0,0,1}  };
+                            {0,0,0,1},
+                            {1,0,0,0},
+                            {0,1,0,0},
+                            {0,0,1,0},
+                            {0,0,0,1}   };
+
+    double[][] brokenLetters = new double[8][35]; // массив испорченных символов
+
+
 
     NeuralNetwork() {
         enters = new double[35];
@@ -81,6 +92,14 @@ public class NeuralNetwork {
             for (int j = 0 ; j < wHO[i].length; j++) {
                 wHO[i][j] = Math.random() * 2 - 1;
             }
+        }
+
+        int j = 0;
+        for (int i = 0 ;i < brokenLetters.length; i++) {
+            brokenLetters[i] = getBrokenLetter(patterns[j]);
+            j++;
+            if (i == 3)
+                j = 0;
         }
     }
 
@@ -118,10 +137,12 @@ public class NeuralNetwork {
         double[] errorInputs = new double[inputs.length];  //дельты первого слоя
         double[] errorHidden = new double[hidden.length];  // дельты скрытого слоя
         double gError = 0;  //общая ошибка сети
+        double gTestError = 0;  //общая ошибка сети
         double[] errorOuters = new double[outers.length];  // дельты выходного слоя
         int counter = 0;  //счетчик эпох
         do {
             gError = 0;
+            gTestError = 0;
             for (int p = 0 ; p < patterns.length; p ++) {  // patterns - это двумерный массив в котором хранятся наборы входных значений
 
                 for (int i = 0; i < enters.length; i++)  // устанавливаем входной набор
@@ -133,7 +154,6 @@ public class NeuralNetwork {
 
                 for (int i = 0 ; i < outers.length; i ++)  //ошибка сети
                     lError+= (outers[i] - answers[p][i]) * (outers[i] - answers[p][i]);
-
 
                 gError+=Math.abs(lError);
 
@@ -177,11 +197,32 @@ public class NeuralNetwork {
                 }
             }
 
+
+            //считаем ошибку тестирования
+
+            for (int p = 0 ; p < brokenLetters.length; p++) {
+
+                for (int i = 0; i < enters.length; i++)  // устанавливаем входной набор
+                    enters[i] = brokenLetters[p][i];
+
+                countOut();  // рассчитываем выходы
+
+                double lTestError = 0;
+
+                for (int i = 0 ; i < outers.length; i ++)  //ошибка сети
+                    lTestError+= (outers[i] - answers[p][i]) * (outers[i] - answers[p][i]);
+
+                gTestError+=Math.abs(lTestError);
+
+            }
+
+
             counter++;
             points.add(gError);
+            testPoints.add(gTestError);
         } //while (gError >0.05);
             while (counter < 300);
-        System.out.println("Count = " + counter);
+        testScore = gTestError;
         score = gError;
 
     }
@@ -189,20 +230,60 @@ public class NeuralNetwork {
     public void showResult(double[] inArray) {
         enters = inArray;
         countOut();
-        System.out.println(outers[0] + "|" + outers[1] + "|" + outers[2] + "|" + outers[3]);
+    }
+
+    public double[] calculateAnswer(double[] letter) {
+        double[] errors = new double[4];
+        errors[0] = 0; errors[1] = 0; errors[2] = 0; errors[3] = 0;
+        enters = letter;
+        countOut();
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                errors[i] += (answers[i][j] - outers[j]) * (answers[i][j] - outers[j]);
+            }
+        }
+        System.out.println(errors[0]);
+        System.out.println(errors[1]);
+        System.out.println(errors[2]);
+        System.out.println(errors[3]);
+        System.out.println("______________");
+        int min = 0;
+        for (int i = 1 ; i < 4 ; i++) {
+            if (errors[i] < errors[min]) {
+                min = i;
+            }
+
+        }
+        return patterns[min];
+    }
+
+    public double[] getBrokenLetter(double[] letter) {
+        double random = 0;
+        double[] result = new double[letter.length];
+        for (int i = 0 ; i < letter.length; i++) {
+            random = Math.random();
+            if (random < 0.1) {
+                result[i] = letter[i] == 1 ? 0 : 1;
+            } else
+                result[i] = letter[i];
+        }
+        return result;
     }
 
 
     public static void main(String[] args) { 
 
-        NeuralNetwork nn = new NeuralNetwork();
+        NeuralNetwork nn = new NeuralNetwork(); //создаем объект нейронной сети
 
-        nn.init();
-        nn.study();
+        nn.init();  // инициализация весов и кол-ва нейронов в слоях
+        nn.study(); //  обучение
 
 
-        //Graph.createAndShowGui(nn.points, nn.score);
-        Symbol.createAndShowGui(nn.patterns[0], nn.patterns[1]);
+        Graph.createAndShowGui(nn.points, nn.score, "Error");  // график ошибки
+        Graph.createAndShowGui(nn.testPoints, nn.testScore, "Test Error");  // график ошибки тестирования
+
+        for (int i = 0 ; i < 8; i++)
+        Symbol.createAndShowGui(nn.brokenLetters[i], nn.calculateAnswer(nn.brokenLetters[i]));  //отрисовка символов по 2 шт (испорчен - результат)
 
 
     }
